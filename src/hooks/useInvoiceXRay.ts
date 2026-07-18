@@ -168,7 +168,12 @@ export function useInvoiceXRay() {
   const getClient = useCallback(async (): Promise<BrowserMcpClient> => {
     if (clientRef.current) return clientRef.current;
 
-    const sseUrl = import.meta.env.VITE_MCP_SERVER_URL || "http://localhost:3000/sse";
+    const envProcess = typeof globalThis !== "undefined" ? (globalThis as any).process : undefined;
+    const sseUrl =
+      (typeof import.meta !== "undefined" && import.meta.env?.VITE_MCP_SERVER_URL) ||
+      envProcess?.env?.NEXT_PUBLIC_MCP_SERVER_URL ||
+      envProcess?.env?.VITE_MCP_SERVER_URL ||
+      "https://mcp-server-6a5-hackoverflow-amrita-university-amritapuri-campus.app.nitrocloud.ai/sse";
     console.log(`[useInvoiceXRay] Connecting to live MCP server at ${sseUrl}...`);
     const client = new BrowserMcpClient(sseUrl);
 
