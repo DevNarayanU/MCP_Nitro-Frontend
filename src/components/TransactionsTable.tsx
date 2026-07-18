@@ -142,17 +142,17 @@ export const TransactionsTable: React.FC<TransactionsTableProps> = ({
                     {/* Exporter Name & IEC */}
                     <td className="py-4 px-6">
                       <div className="font-semibold text-zinc-100 text-sm">
-                        {item.transactionMeta.exporter_name}
+                        {item.transactionMeta?.exporter_name || "N/A"}
                       </div>
                       <div className="text-xs font-mono text-zinc-400 mt-0.5">
-                        IEC: <span className="text-zinc-300">{item.transactionMeta.exporter_iec}</span>
+                        IEC: <span className="text-zinc-300">{item.transactionMeta?.exporter_iec || "N/A"}</span>
                       </div>
                     </td>
 
                     {/* Declared Value & Gap */}
                     <td className="py-4 px-6 font-mono whitespace-nowrap">
                       <div className="font-bold text-zinc-100 text-base">
-                        ${item.transactionMeta.declared_value_usd.toLocaleString()}
+                        ${(item.transactionMeta?.declared_value_usd ?? 0).toLocaleString()}
                       </div>
                       {item.manipulationGap && item.manipulationGap.gap > 0 ? (
                         <div className="text-xs text-red-400 font-semibold mt-0.5">
