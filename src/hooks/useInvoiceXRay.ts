@@ -1,16 +1,145 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import type { EvaluationResults, AccumulatedFlag } from "../types/invoicexray";
-import { SEED_TRANSACTIONS } from "../data/seedTransactions";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
+
+// Browser-safe, native EventSource/Fetch-based MCP Client to prevent Node dependency crashes in the browser
+class BrowserMcpClient {
+  private eventSource: EventSource | null = null;
+  private postUrl: string | null = null;
+  private pendingRequests = new Map<number | string, { resolve: (val: any) => void; reject: (err: any) => void }>();
+  private idCounter = 1;
+  private connectPromise: Promise<void> | null = null;
+
+  private sseUrl: string;
+
+  constructor(sseUrl: string) {
+    this.sseUrl = sseUrl;
+  }
+
+  async connect(): Promise<void> {
+    if (this.connectPromise) return this.connectPromise;
+
+    this.connectPromise = new Promise<void>((resolve, reject) => {
+      console.log(`[BrowserMcpClient] Connecting to SSE at ${this.sseUrl}...`);
+      const es = new EventSource(this.sseUrl);
+      this.eventSource = es;
+
+      const timeout = setTimeout(() => {
+        es.close();
+        reject(new Error("Connection timeout after 5 seconds"));
+      }, 5000);
+
+      es.addEventListener("endpoint", (event) => {
+        clearTimeout(timeout);
+        const relativeUrl = event.data;
+        const base = new URL(this.sseUrl).origin;
+        this.postUrl = new URL(relativeUrl, base).toString();
+        console.log(`[BrowserMcpClient] Post endpoint established: ${this.postUrl}`);
+        resolve();
+      });
+
+      es.addEventListener("message", (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          if (msg.id !== undefined && this.pendingRequests.has(msg.id)) {
+            const { resolve: reqResolve, reject: reqReject } = this.pendingRequests.get(msg.id)!;
+            this.pendingRequests.delete(msg.id);
+            if (msg.error) {
+              reqReject(new Error(msg.error.message || JSON.stringify(msg.error)));
+            } else {
+              reqResolve(msg.result);
+            }
+          }
+        } catch (e) {
+          console.error("[BrowserMcpClient] Error handling message:", e);
+        }
+      });
+
+      es.onerror = (err) => {
+        clearTimeout(timeout);
+        console.error("[BrowserMcpClient] SSE Connection Error:", err);
+        reject(err);
+      };
+    });
+
+    return this.connectPromise;
+  }
+
+  async callTool(name: string, args: Record<string, any>): Promise<any> {
+    await this.connect();
+    if (!this.postUrl) throw new Error("Not connected");
+
+    const id = this.idCounter++;
+    const promise = new Promise<any>((resolve, reject) => {
+      this.pendingRequests.set(id, { resolve, reject });
+    });
+
+    try {
+      const res = await fetch(this.postUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id,
+          method: "tools/call",
+          params: { name, arguments: args }
+        })
+      });
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+    } catch (err) {
+      this.pendingRequests.delete(id);
+      throw err;
+    }
+
+    return promise;
+  }
+
+  async readResource(params: { uri: string }): Promise<any> {
+    await this.connect();
+    if (!this.postUrl) throw new Error("Not connected");
+
+    const id = this.idCounter++;
+    const promise = new Promise<any>((resolve, reject) => {
+      this.pendingRequests.set(id, { resolve, reject });
+    });
+
+    try {
+      const res = await fetch(this.postUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id,
+          method: "resources/read",
+          params: { uri: params.uri }
+        })
+      });
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+    } catch (err) {
+      this.pendingRequests.delete(id);
+      throw err;
+    }
+
+    return promise;
+  }
+
+  close() {
+    if (this.eventSource) {
+      this.eventSource.close();
+    }
+  }
+}
 
 // Helper to make tool calls to the MCP server
 async function callTool<T>(
-  client: Client,
+  client: BrowserMcpClient,
   toolName: string,
   args: Record<string, unknown>
 ): Promise<T> {
-  const response = await client.callTool({ name: toolName, arguments: args });
+  const response = await client.callTool(toolName, args);
   const textContent = response.content as Array<{ type: string; text: string }>;
   const text = textContent?.[0]?.text;
   if (!text) throw new Error(`Empty response from tool: ${toolName}`);
@@ -26,33 +155,23 @@ export function useInvoiceXRay() {
   const [riskFilter, setRiskFilter] = useState<string>("ALL");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   
-  const clientRef = useRef<Client | null>(null);
-  const transportRef = useRef<SSEClientTransport | null>(null);
+  const clientRef = useRef<BrowserMcpClient | null>(null);
 
   const showToast = useCallback((msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
   }, []);
 
-  // Establish a connection to the live MCP server running on port 3000
-  const getClient = useCallback(async (): Promise<Client> => {
+  // Establish a connection to the live MCP server
+  const getClient = useCallback(async (): Promise<BrowserMcpClient> => {
     if (clientRef.current) return clientRef.current;
 
-    console.log("[useInvoiceXRay] Connecting to live MCP server at http://localhost:3000/sse...");
-    const client = new Client({
-      name: "invoicex-ray-dashboard",
-      version: "1.0.0",
-    }, {
-      capabilities: {}
-    });
+    const sseUrl = import.meta.env.VITE_MCP_SERVER_URL || "http://localhost:3000/sse";
+    console.log(`[useInvoiceXRay] Connecting to live MCP server at ${sseUrl}...`);
+    const client = new BrowserMcpClient(sseUrl);
 
-    const transport = new SSEClientTransport(
-      new URL("http://localhost:3000/sse")
-    );
-
-    await client.connect(transport);
+    await client.connect();
     clientRef.current = client;
-    transportRef.current = transport;
     console.log("[useInvoiceXRay] Connected to live MCP server!");
     return client;
   }, []);
@@ -373,29 +492,13 @@ export function useInvoiceXRay() {
 
       return result;
     } catch (err: any) {
-      console.warn(`[useInvoiceXRay] Live MCP audit failed: ${err.message}. Falling back to local simulation.`);
-      
-      // Fallback to simulated seed transactions
-      const result = SEED_TRANSACTIONS[id];
-      if (!result) {
-        throw new Error(`Transaction ID ${id} not found in local seed registry.`);
-      }
-
-      const fallbackResult = {
-        ...result,
-        evaluatedAt: new Date().toISOString(),
-      };
-
-      setEvaluations((prev) => ({
-        ...prev,
-        [id]: fallbackResult,
-      }));
-
-      return fallbackResult;
+      console.error(`[useInvoiceXRay] Live MCP audit failed for ${id}:`, err);
+      showToast(`Audit failed for ${id}: ${err.message}`);
+      throw err;
     }
   }, [getClient]);
 
-  // Orchestrate sequential loading of all seed IDs
+  // Orchestrate sequential loading of all transaction IDs from database
   const evaluateAll = useCallback(async () => {
     setIsEvaluating(true);
     let ids: string[] = [];
@@ -408,8 +511,9 @@ export function useInvoiceXRay() {
         console.log("[useInvoiceXRay] Live transactions loaded:", ids);
       }
     } catch (err: any) {
-      console.warn("[useInvoiceXRay] Live listing failed, using seed transactions fallback.", err);
-      ids = Object.keys(SEED_TRANSACTIONS);
+      console.error("[useInvoiceXRay] Live database listing failed:", err);
+      showToast("Connection to MCP Database failed. Make sure your server is running.");
+      ids = [];
     }
     setTransactionIds(ids);
 
@@ -429,8 +533,8 @@ export function useInvoiceXRay() {
     evaluateAll();
     
     return () => {
-      if (transportRef.current) {
-        transportRef.current.close().catch(console.error);
+      if (clientRef.current) {
+        clientRef.current.close();
       }
       clientRef.current = null;
     };
@@ -480,7 +584,7 @@ export function useInvoiceXRay() {
 
   const selectedEvaluation = useMemo(() => {
     if (!selectedId) return null;
-    return evaluations[selectedId] || SEED_TRANSACTIONS[selectedId] || null;
+    return evaluations[selectedId] || null;
   }, [selectedId, evaluations]);
 
   // Renders HTML counterfactual report synchronously
@@ -490,7 +594,7 @@ export function useInvoiceXRay() {
       if (evaluation && evaluation.counterfactualReportHtml) {
         return evaluation.counterfactualReportHtml;
       }
-      return localGenerateCounterfactualReport(evaluation || SEED_TRANSACTIONS[id]);
+      return "<p>Audit report not generated for this transaction.</p>";
     },
     [evaluations]
   );
@@ -502,14 +606,14 @@ export function useInvoiceXRay() {
       if (evaluation && evaluation.rbiFormEtxText) {
         return evaluation.rbiFormEtxText;
       }
-      return localGenerateRBIFormETX(evaluation || SEED_TRANSACTIONS[id]);
+      return "RBI Form ETX draft not generated.";
     },
     [evaluations]
   );
 
   const exportSTRNarrative = useCallback(
     async (id: string): Promise<string> => {
-      const record = evaluations[id] || SEED_TRANSACTIONS[id];
+      const record = evaluations[id];
       const narrative = (record?.str as any)?.fiu_ind_str_draft?.fiu_ready_narrative || "No STR Narrative generated for this transaction.";
       try {
         await navigator.clipboard.writeText(narrative);
@@ -543,166 +647,6 @@ export function useInvoiceXRay() {
     toastMessage,
     showToast,
   };
-}
-
-// ─────────────────────────────────────────────────────────
-// Local fallback generators (if MCP server is unreachable)
-// ─────────────────────────────────────────────────────────
-
-function localGenerateCounterfactualReport(record: any): string {
-  if (!record) return "<p>Transaction not found.</p>";
-  const { transactionMeta, manipulationGap, overallRisk, flags, crossAgency } = record;
-
-  return `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>InvoiceX-Ray Counterfactual Valuation Audit - ${record.invoice_id}</title>
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #09090b; color: #f4f4f5; padding: 24px; margin: 0; line-height: 1.5; font-size: 13px; }
-    .header { border-bottom: 2px solid #27272a; padding-bottom: 16px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
-    .title { font-size: 18px; font-weight: 700; color: #ffffff; letter-spacing: -0.5px; }
-    .subtitle { color: #a1a1aa; font-size: 12px; font-family: monospace; }
-    .badge { padding: 4px 10px; border-radius: 4px; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; display: inline-block; }
-    .badge-CRITICAL { background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); }
-    .badge-HIGH { background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); }
-    .badge-CLEAR { background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); }
-    .section { background: #18181b; border: 1px solid #27272a; border-radius: 6px; padding: 16px; margin-bottom: 16px; }
-    .section-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: #a1a1aa; margin-bottom: 12px; border-bottom: 1px solid #27272a; padding-bottom: 6px; }
-    .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
-    .data-item { display: flex; flex-direction: column; }
-    .data-label { color: #71717a; font-size: 11px; text-transform: uppercase; }
-    .data-value { font-family: monospace; font-size: 13px; color: #e4e4e7; font-weight: 600; }
-    .bar-container { background: #27272a; border-radius: 4px; height: 24px; position: relative; margin: 8px 0; overflow: hidden; }
-    .bar-declared { background: #ef4444; height: 100%; border-radius: 4px; transition: width 0.5s ease; }
-    .bar-benchmark { background: #3b82f6; height: 100%; border-radius: 4px; opacity: 0.8; }
-    .narrative { background: #09090b; border-left: 3px solid #ef4444; padding: 10px 14px; font-size: 12px; color: #d4d4d8; margin-top: 10px; font-style: italic; }
-    table { width: 100%; border-collapse: collapse; margin-top: 8px; }
-    th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid #27272a; font-size: 12px; }
-    th { color: #a1a1aa; font-weight: 600; font-size: 11px; text-transform: uppercase; }
-    td { font-family: monospace; }
-  </style>
-</head>
-<body>
-  <div class="header">
-    <div>
-      <div class="title">COUNTERFACTUAL VALUATION AUDIT REPORT</div>
-      <div class="subtitle">INVOICE ID: ${transactionMeta.invoice_id} | EVALUATED: ${new Date(record.evaluatedAt).toLocaleString()}</div>
-    </div>
-    <div>
-      <span class="badge badge-${overallRisk}">${overallRisk} RISK</span>
-    </div>
-  </div>
-
-  <div class="section">
-    <div class="section-title">Trade Entity & Logistics Summary</div>
-    <div class="grid">
-      <div class="data-item"><span class="data-label">Exporter</span><span class="data-value">${transactionMeta.exporter_name} (${transactionMeta.exporter_iec})</span></div>
-      <div class="data-item"><span class="data-label">Importer</span><span class="data-value">${transactionMeta.importer_name}</span></div>
-      <div class="data-item"><span class="data-label">HS Commodity</span><span class="data-value">${transactionMeta.hs_code} - ${transactionMeta.hs_description}</span></div>
-      <div class="data-item"><span class="data-label">Route Ports</span><span class="data-value">${transactionMeta.origin_port} ➔ ${transactionMeta.discharge_port}</span></div>
-    </div>
-  </div>
-
-  ${
-    manipulationGap
-      ? `<div class="section">
-    <div class="section-title">Counterfactual Pricing Analysis</div>
-    <div class="grid">
-      <div class="data-item"><span class="data-label">Declared Total</span><span class="data-value">$${transactionMeta.declared_value_usd.toLocaleString()} USD</span></div>
-      <div class="data-item"><span class="data-label">Benchmark Market Valuation</span><span class="data-value">$${(transactionMeta.declared_value_usd - manipulationGap.gap).toLocaleString()} USD</span></div>
-      <div class="data-item"><span class="data-label">Valuation Discrepancy (Gap)</span><span class="data-value" style="color: ${manipulationGap.gap > 0 ? "#ef4444" : "#10b981"}">$${manipulationGap.gap.toLocaleString()} USD (${manipulationGap.direction})</span></div>
-      <div class="data-item"><span class="data-label">Penalty Exposure</span><span class="data-value" style="color: #f59e0b">$${record.totalPenaltyExposure.toLocaleString()} USD</span></div>
-    </div>
-    <div class="narrative">"${manipulationGap.narrative}"</div>
-  </div>`
-      : ""
-  }
-
-  <div class="section">
-    <div class="section-title">Synthesized TBML Risk Indicators (${flags.length})</div>
-    <table>
-      <thead>
-        <tr>
-          <th>Flag Code</th>
-          <th>Severity</th>
-          <th>Confidence</th>
-          <th>Details</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${flags
-          .map(
-            (f: any) => `<tr>
-          <td style="color: #f4f4f5; font-weight: 700;">${f.flag_type}</td>
-          <td><span style="color: ${f.severity === "CRITICAL" ? "#ef4444" : f.severity === "HIGH" ? "#f59e0b" : "#a1a1aa"}">${f.severity}</span></td>
-          <td>${f.confidence}</td>
-          <td>${f.detail}</td>
-        </tr>`
-          )
-          .join("")}
-      </tbody>
-    </table>
-  </div>
-
-  <div class="section">
-    <div class="section-title">Cross-Agency Data Verification</div>
-    <div class="grid">
-      <div class="data-item"><span class="data-label">DGFT IEC Status</span><span class="data-value" style="color: ${crossAgency.dgft_status.status === "CAUTION_LISTED" ? "#ef4444" : "#10b981"}">${crossAgency.dgft_status.status}</span></div>
-      <div class="data-item"><span class="data-label">ICEGATE Weight Variance</span><span class="data-value" style="color: ${crossAgency.icegate_customs.anomaly_detected ? "#ef4444" : "#10b981"}">${crossAgency.icegate_customs.weight_variance_pct}% Variance</span></div>
-      <div class="data-item"><span class="data-label">Geospatial Discharge Risk</span><span class="data-value">${crossAgency.geospatial_routing.is_landlocked ? "LANDLOCKED DISCHARGE" : "NORMAL SEAPORT"}</span></div>
-    </div>
-  </div>
-
-  <div style="font-size: 10px; color: #52525b; text-align: center; margin-top: 20px; font-family: monospace;">
-    GENERATED BY INVOICEX-RAY COMPLIANCE PLATFORM • CONFIDENTIAL REGULATORY REPORT (LOCAL TEMPLATE FALLBACK)
-  </div>
-</body>
-</html>`;
-}
-
-function localGenerateRBIFormETX(record: any): string {
-  if (!record) return "Transaction not found.";
-
-  const { transactionMeta, overallRisk, totalPenaltyExposure } = record;
-
-  return `================================================================================
-RESERVE BANK OF INDIA - FOREIGN EXCHANGE MANAGEMENT ACT (FEMA)
-FORM ETX: APPLICATION FOR EXTENSION OF TIME FOR REALIZATION OF EXPORT BILLS
-================================================================================
-DATE OF APPLICATION : ${new Date().toISOString().split("T")[0]}
-SYSTEM AUDIT REF NO : ETX-INVOICEXRAY-${record.invoice_id}-${Date.now().toString().slice(-4)}
-
-1. PARTICULARS OF EXPORTER:
-   Name of Exporter       : ${transactionMeta.exporter_name}
-   Importer-Exporter Code : ${transactionMeta.exporter_iec}
-   Authorised Dealer Bank : State Bank of India, Overseas Branch, Mumbai
-
-2. PARTICULARS OF EXPORT BILL / INVOICE:
-   Invoice Number & Date  : ${transactionMeta.invoice_id} / ${transactionMeta.invoice_date}
-   Shipping Bill No & Date: ${record.crossAgency.icegate_customs.shipping_bill}
-   Port of Loading        : ${transactionMeta.origin_port}
-   Destination Port       : ${transactionMeta.discharge_port}
-   Commodity / HS Code    : ${transactionMeta.hs_description} (${transactionMeta.hs_code})
-
-3. FINANCIAL SUMMARY:
-   Total Invoice Value    : $${transactionMeta.declared_value_usd.toLocaleString()} USD
-   Amount Realized to Date: $${transactionMeta.realized_amount_usd.toLocaleString()} USD
-   Outstanding Balance    : $${(transactionMeta.declared_value_usd - transactionMeta.realized_amount_usd).toLocaleString()} USD
-   Original Due Date      : ${transactionMeta.realization_deadline} (${transactionMeta.days_remaining} Days Remaining)
-
-4. TBML COMPLIANCE RISK ASSESSMENT:
-   Automated Risk Rating  : ${overallRisk}
-   Estimated FEMA Penalty : $${totalPenaltyExposure.toLocaleString()} USD
-   Primary Compliance Flag: ${record.flags[0]?.detail || "N/A - Standard Commercial Realization Monitoring"}
-
-5. EXTENSION REQUEST & REASON:
-   Extension Period Sought: 180 Days beyond statutory 9-month window.
-   Justification Narrative: Export proceeds delayed due to buyer commercial dispute and overseas correspondent banking clearance checks. Trade documents under compliance hold.
-
-================================================================================
-STATUS: PENDING AD AUTHORISED OFFICER APPROVAL & EDPMS REGISTRATION (LOCAL FALLBACK)
-================================================================================`;
 }
 
 export default useInvoiceXRay;
