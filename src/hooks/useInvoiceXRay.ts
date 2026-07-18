@@ -1,16 +1,146 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import type { EvaluationResults, AccumulatedFlag } from "../types/invoicexray";
 import { SEED_TRANSACTIONS } from "../data/seedTransactions";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
+
+// Browser-safe, native EventSource/Fetch-based MCP Client to prevent Node dependency crashes in the browser
+class BrowserMcpClient {
+  private eventSource: EventSource | null = null;
+  private postUrl: string | null = null;
+  private pendingRequests = new Map<number | string, { resolve: (val: any) => void; reject: (err: any) => void }>();
+  private idCounter = 1;
+  private connectPromise: Promise<void> | null = null;
+
+  private sseUrl: string;
+
+  constructor(sseUrl: string) {
+    this.sseUrl = sseUrl;
+  }
+
+  async connect(): Promise<void> {
+    if (this.connectPromise) return this.connectPromise;
+
+    this.connectPromise = new Promise<void>((resolve, reject) => {
+      console.log(`[BrowserMcpClient] Connecting to SSE at ${this.sseUrl}...`);
+      const es = new EventSource(this.sseUrl);
+      this.eventSource = es;
+
+      const timeout = setTimeout(() => {
+        es.close();
+        reject(new Error("Connection timeout after 5 seconds"));
+      }, 5000);
+
+      es.addEventListener("endpoint", (event) => {
+        clearTimeout(timeout);
+        const relativeUrl = event.data;
+        const base = new URL(this.sseUrl).origin;
+        this.postUrl = new URL(relativeUrl, base).toString();
+        console.log(`[BrowserMcpClient] Post endpoint established: ${this.postUrl}`);
+        resolve();
+      });
+
+      es.addEventListener("message", (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          if (msg.id !== undefined && this.pendingRequests.has(msg.id)) {
+            const { resolve: reqResolve, reject: reqReject } = this.pendingRequests.get(msg.id)!;
+            this.pendingRequests.delete(msg.id);
+            if (msg.error) {
+              reqReject(new Error(msg.error.message || JSON.stringify(msg.error)));
+            } else {
+              reqResolve(msg.result);
+            }
+          }
+        } catch (e) {
+          console.error("[BrowserMcpClient] Error handling message:", e);
+        }
+      });
+
+      es.onerror = (err) => {
+        clearTimeout(timeout);
+        console.error("[BrowserMcpClient] SSE Connection Error:", err);
+        reject(err);
+      };
+    });
+
+    return this.connectPromise;
+  }
+
+  async callTool(name: string, args: Record<string, any>): Promise<any> {
+    await this.connect();
+    if (!this.postUrl) throw new Error("Not connected");
+
+    const id = this.idCounter++;
+    const promise = new Promise<any>((resolve, reject) => {
+      this.pendingRequests.set(id, { resolve, reject });
+    });
+
+    try {
+      const res = await fetch(this.postUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id,
+          method: "tools/call",
+          params: { name, arguments: args }
+        })
+      });
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+    } catch (err) {
+      this.pendingRequests.delete(id);
+      throw err;
+    }
+
+    return promise;
+  }
+
+  async readResource(params: { uri: string }): Promise<any> {
+    await this.connect();
+    if (!this.postUrl) throw new Error("Not connected");
+
+    const id = this.idCounter++;
+    const promise = new Promise<any>((resolve, reject) => {
+      this.pendingRequests.set(id, { resolve, reject });
+    });
+
+    try {
+      const res = await fetch(this.postUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id,
+          method: "resources/read",
+          params: { uri: params.uri }
+        })
+      });
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+    } catch (err) {
+      this.pendingRequests.delete(id);
+      throw err;
+    }
+
+    return promise;
+  }
+
+  close() {
+    if (this.eventSource) {
+      this.eventSource.close();
+    }
+  }
+}
 
 // Helper to make tool calls to the MCP server
 async function callTool<T>(
-  client: Client,
+  client: BrowserMcpClient,
   toolName: string,
   args: Record<string, unknown>
 ): Promise<T> {
-  const response = await client.callTool({ name: toolName, arguments: args });
+  const response = await client.callTool(toolName, args);
   const textContent = response.content as Array<{ type: string; text: string }>;
   const text = textContent?.[0]?.text;
   if (!text) throw new Error(`Empty response from tool: ${toolName}`);
@@ -26,33 +156,23 @@ export function useInvoiceXRay() {
   const [riskFilter, setRiskFilter] = useState<string>("ALL");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   
-  const clientRef = useRef<Client | null>(null);
-  const transportRef = useRef<SSEClientTransport | null>(null);
+  const clientRef = useRef<BrowserMcpClient | null>(null);
 
   const showToast = useCallback((msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
   }, []);
 
-  // Establish a connection to the live MCP server running on port 3000
-  const getClient = useCallback(async (): Promise<Client> => {
+  // Establish a connection to the live MCP server
+  const getClient = useCallback(async (): Promise<BrowserMcpClient> => {
     if (clientRef.current) return clientRef.current;
 
-    console.log("[useInvoiceXRay] Connecting to live MCP server at http://localhost:3000/sse...");
-    const client = new Client({
-      name: "invoicex-ray-dashboard",
-      version: "1.0.0",
-    }, {
-      capabilities: {}
-    });
+    const sseUrl = import.meta.env.VITE_MCP_SERVER_URL || "http://localhost:3000/sse";
+    console.log(`[useInvoiceXRay] Connecting to live MCP server at ${sseUrl}...`);
+    const client = new BrowserMcpClient(sseUrl);
 
-    const transport = new SSEClientTransport(
-      new URL("http://localhost:3000/sse")
-    );
-
-    await client.connect(transport);
+    await client.connect();
     clientRef.current = client;
-    transportRef.current = transport;
     console.log("[useInvoiceXRay] Connected to live MCP server!");
     return client;
   }, []);
@@ -429,8 +549,8 @@ export function useInvoiceXRay() {
     evaluateAll();
     
     return () => {
-      if (transportRef.current) {
-        transportRef.current.close().catch(console.error);
+      if (clientRef.current) {
+        clientRef.current.close();
       }
       clientRef.current = null;
     };
