@@ -1,17 +1,68 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import TopBar from '@/components/TopBar';
 import STRPanel from '@/components/STRPanel';
-import { mockTransactions } from '@/lib/mockData';
+import type { Transaction } from '@/lib/types';
 import { FileText, FileWarning } from 'lucide-react';
+import { useInvoiceXRay } from '@/lib/useInvoiceXRay';
 
 export default function ReportsPage() {
+  const [loading, setLoading] = useState(true);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [selectedTxnId, setSelectedTxnId] = useState<string | null>(null);
+  
+  // Track audit results locally for selected transactions
+  const [auditResults, setAuditResults] = useState<Record<string, any>>({});
 
-  // Transactions that could have an STR (flagged)
-  const flaggedTxns = mockTransactions.filter((t) => t.flags.length > 0);
+  const { evaluateTransaction, loading: auditing, results } = useInvoiceXRay();
+
+  useEffect(() => {
+    async function loadTransactions() {
+      try {
+        const res = await fetch('/api/transactions').then(r => r.json());
+        if (res.success) {
+          setTransactions(res.data);
+        }
+      } catch (err) {
+        console.error('Error fetching transactions:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadTransactions();
+  }, []);
+
+  // Sync active hook results into our local audit results cache
+  useEffect(() => {
+    if (results && results.invoice_id) {
+      setAuditResults(prev => ({
+        ...prev,
+        [results.invoice_id]: results
+      }));
+    }
+  }, [results]);
+
+  // Expose only flagged or suspicious transactions (risk high or medium) for STRs
+  const flaggedTxns = transactions.filter((t) => t.riskLevel === 'high' || t.riskLevel === 'medium');
   const selectedTxn = flaggedTxns.find((t) => t.id === selectedTxnId);
+  const selectedAuditResult = selectedTxnId ? auditResults[selectedTxnId] : null;
+
+  const handleGenerate = async (invoiceId: string) => {
+    try {
+      await evaluateTransaction(invoiceId);
+    } catch (err) {
+      console.error("Failed to generate STR via hook:", err);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, padding: 24, justifyContent: 'center', alignItems: 'center', height: '100vh', color: 'var(--text-muted)' }}>
+        <p>Loading Flagged Transactions...</p>
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
@@ -62,7 +113,7 @@ export default function ReportsPage() {
 
             {flaggedTxns.map((txn, idx) => {
               const isSelected = txn.id === selectedTxnId;
-              const hasCritical = txn.flags.some((f) => f.severity === 'critical');
+              const hasCritical = txn.riskLevel === 'high';
 
               return (
                 <div
@@ -124,7 +175,7 @@ export default function ReportsPage() {
                         {txn.exporterName}
                       </div>
                       <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 3 }}>
-                        {txn.flags.length} flag{txn.flags.length !== 1 ? 's' : ''} · {txn.riskLevel} risk
+                        {txn.riskLevel.toUpperCase()} Risk · {auditResults[txn.id] ? "AUDITED" : "Awaiting Audit"}
                       </div>
                     </div>
                   </div>
@@ -144,7 +195,12 @@ export default function ReportsPage() {
             }}
           >
             {selectedTxn ? (
-              <STRPanel transaction={selectedTxn} />
+              <STRPanel
+                transaction={selectedTxn}
+                results={selectedAuditResult}
+                onGenerate={() => handleGenerate(selectedTxn.id)}
+                auditing={auditing && selectedTxn.id === results?.invoice_id}
+              />
             ) : (
               <div
                 style={{

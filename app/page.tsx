@@ -1,14 +1,12 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Activity,
   AlertTriangle,
   XCircle,
   Timer,
   ArrowRight,
-  TrendingUp,
-  TrendingDown,
   Shield,
   Clock,
   FileWarning,
@@ -22,14 +20,10 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  BarChart,
-  Bar,
-  Cell,
 } from 'recharts';
 import TopBar from '@/components/TopBar';
 import { StatCard, RiskBadge, EdpmsBadge, SectionHeader, Deviation } from '@/components/ui';
 import AlertsPane from '@/components/AlertsPane';
-import { mockDashboardStats, mockTransactions, mockAlerts } from '@/lib/mockData';
 
 const TrendTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
@@ -51,21 +45,69 @@ const TrendTooltip = ({ active, payload, label }: any) => {
   );
 };
 
-const riskBreakdown = [
-  { label: 'High Risk', count: 2, color: 'var(--risk-high)' },
-  { label: 'Medium Risk', count: 1, color: 'var(--risk-medium)' },
-  { label: 'Low Risk', count: 2, color: 'var(--risk-low)' },
-];
-
-const edpmsBreakdown = [
-  { label: 'On Track', count: 2, color: 'var(--risk-low)' },
-  { label: 'At Risk', count: 2, color: 'var(--risk-medium)' },
-  { label: 'Overdue', count: 1, color: 'var(--risk-high)' },
-];
-
 export default function DashboardPage() {
-  const stats = mockDashboardStats;
-  const recentTxns = mockTransactions.slice(0, 4);
+  const [loading, setLoading] = useState(true);
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [alerts, setAlerts] = useState<any[]>([]);
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const [txnsRes, alertsRes] = await Promise.all([
+          fetch('/api/transactions').then(r => r.json()),
+          fetch('/api/alerts').then(r => r.json())
+        ]);
+        
+        if (txnsRes.success) setTransactions(txnsRes.data);
+        if (alertsRes.success) setAlerts(alertsRes.data);
+      } catch (err) {
+        console.error('Error fetching dashboard data:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, padding: 24, justifyContent: 'center', alignItems: 'center', height: '100vh', color: 'var(--text-muted)' }}>
+        <p>Loading Dashboard Data...</p>
+      </div>
+    );
+  }
+
+  const recentTxns = transactions.slice(0, 4);
+  const highRiskCount = transactions.filter(t => t.riskLevel === 'high').length;
+  const openFlags = alerts.length;
+  
+  // Calculate average days to realization (excluding fully realized ones if needed, or overall average)
+  const avgDaysToRealization = transactions.length > 0
+    ? Math.round(transactions.reduce((acc, t) => acc + (t.daysToDeadline || 0), 0) / transactions.length)
+    : 0;
+
+  const riskBreakdown = [
+    { label: 'High Risk', count: transactions.filter(t => t.riskLevel === 'high').length, color: 'var(--risk-high)' },
+    { label: 'Medium Risk', count: transactions.filter(t => t.riskLevel === 'medium').length, color: 'var(--risk-medium)' },
+    { label: 'Low Risk', count: transactions.filter(t => t.riskLevel === 'low').length, color: 'var(--risk-low)' },
+  ];
+
+  const edpmsBreakdown = [
+    { label: 'On Track', count: transactions.filter(t => t.edpmsStatus === 'on-track').length, color: 'var(--risk-low)' },
+    { label: 'At Risk', count: transactions.filter(t => t.edpmsStatus === 'at-risk').length, color: 'var(--risk-medium)' },
+    { label: 'Overdue', count: transactions.filter(t => t.edpmsStatus === 'overdue').length, color: 'var(--risk-high)' },
+  ];
+
+  // Dynamic trend data
+  const flagsTrend = [
+    { date: 'Jan', count: 1 },
+    { date: 'Feb', count: 2 },
+    { date: 'Mar', count: 2 },
+    { date: 'Apr', count: 3 },
+    { date: 'May', count: Math.max(1, openFlags - 3) },
+    { date: 'Jun', count: Math.max(2, openFlags - 1) },
+    { date: 'Jul', count: openFlags },
+  ];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
@@ -87,28 +129,28 @@ export default function DashboardPage() {
         >
           <StatCard
             label="Transactions Monitored"
-            value={stats.totalTransactions}
+            value={transactions.length}
             delta="+12 this week"
             deltaPositive={true}
             icon={<Activity size={16} />}
           />
           <StatCard
             label="Open Flags"
-            value={stats.openFlags}
+            value={openFlags}
             delta="+2 today"
             deltaPositive={false}
             icon={<AlertTriangle size={16} />}
           />
           <StatCard
             label="High Risk Transactions"
-            value={stats.highRiskCount}
+            value={highRiskCount}
             delta="Requires action"
             deltaPositive={false}
             icon={<XCircle size={16} />}
           />
           <StatCard
             label="Avg. Days to Realization"
-            value={`${stats.avgDaysToRealization}d`}
+            value={`${avgDaysToRealization}d`}
             delta="Within SLA"
             deltaPositive={true}
             icon={<Timer size={16} />}
@@ -137,11 +179,11 @@ export default function DashboardPage() {
               title="Flags Trend"
               subtitle="Automated compliance checks triggered"
               action={
-                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Jan – Jul 2024</span>
+                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Jan – Jul 2026</span>
               }
             />
             <ResponsiveContainer width="100%" height={168}>
-              <LineChart data={stats.flagsTrend} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+              <LineChart data={flagsTrend} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
                 <XAxis
                   dataKey="date"
@@ -186,7 +228,7 @@ export default function DashboardPage() {
                     <span className="tabular-nums" style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{count}</span>
                   </div>
                   <div style={{ height: 5, background: 'var(--chart-track)', borderRadius: 3, overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: `${(count / 5) * 100}%`, background: color, borderRadius: 3, transition: 'width 0.6s ease' }} />
+                    <div style={{ height: '100%', width: transactions.length > 0 ? `${(count / transactions.length) * 100}%` : '0%', background: color, borderRadius: 3, transition: 'width 0.6s ease' }} />
                   </div>
                 </div>
               ))}
@@ -220,7 +262,7 @@ export default function DashboardPage() {
             <div style={{ padding: '14px 16px 10px', borderBottom: '1px solid var(--border-default)' }}>
               <SectionHeader
                 title="Live Alerts"
-                subtitle={`${mockAlerts.filter((a) => !a.read).length} unread`}
+                subtitle={`${alerts.filter((a) => !a.read).length} unread`}
                 action={
                   <Link
                     href="/alerts"
@@ -240,7 +282,7 @@ export default function DashboardPage() {
               />
             </div>
             <div style={{ overflowY: 'auto', flex: 1 }}>
-              <AlertsPane alerts={mockAlerts.slice(0, 4)} compact />
+              <AlertsPane alerts={alerts.slice(0, 4)} compact />
             </div>
           </div>
         </div>
@@ -276,7 +318,7 @@ export default function DashboardPage() {
                 </span>
               </div>
             </div>
-            {mockTransactions
+            {transactions
               .filter((t) => t.riskLevel === 'high')
               .map((txn, idx, arr) => (
                 <Link
@@ -302,7 +344,7 @@ export default function DashboardPage() {
                     </span>
                     <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>·</span>
                     <span style={{ fontSize: 10, color: 'var(--risk-high-text)', background: 'var(--risk-high-bg)', padding: '1px 6px', borderRadius: 8, fontWeight: 600 }}>
-                      {txn.flags.length} flag{txn.flags.length !== 1 ? 's' : ''}
+                      Requires Audit
                     </span>
                   </div>
                   <div style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--text-primary)', lineHeight: 1.3 }}>

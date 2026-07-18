@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { FileWarning, Download, Copy, CheckCircle, Loader2, FileCheck } from 'lucide-react';
 import type { Transaction } from '@/lib/types';
 import { mockSTRTemplate } from '@/lib/mockData';
@@ -8,27 +8,56 @@ import { mockSTRTemplate } from '@/lib/mockData';
 interface STRPanelProps {
   transaction: Transaction;
   onClose?: () => void;
+  results?: any;
+  onGenerate?: () => void;
+  auditing?: boolean;
 }
 
-const STREAM_SPEED = 10;
-const TICK_MS      = 14;
+const STREAM_SPEED = 20; 
+const TICK_MS      = 10;
 
-export default function STRPanel({ transaction, onClose }: STRPanelProps) {
+export default function STRPanel({ transaction, onClose, results, onGenerate, auditing }: STRPanelProps) {
   const [streaming, setStreaming] = useState(false);
   const [displayed, setDisplayed] = useState('');
   const [fullContent, setFullContent] = useState('');
   const [done, setDone] = useState(false);
   const [copied, setCopied] = useState(false);
   const [filed, setFiled] = useState(false);
+  
+  // Track if we have already streamed for this specific result
+  const lastResultIdRef = useRef<string | null>(null);
 
   const generateSTR = () => {
-    const content = mockSTRTemplate(transaction);
+    if (onGenerate && !results) {
+      onGenerate();
+      return;
+    }
+    const liveNarrative = results?.str?.fiu_ind_str_draft?.fiu_ready_narrative;
+    const content = liveNarrative || mockSTRTemplate(transaction);
     setFullContent(content);
     setDisplayed('');
     setDone(false);
     setFiled(false);
     setStreaming(true);
   };
+
+  // Automatically start streaming when results are loaded
+  useEffect(() => {
+    if (results && results.invoice_id === transaction.id) {
+      const resultKey = `${results.invoice_id}-${results.evaluatedAt}`;
+      if (lastResultIdRef.current !== resultKey) {
+        lastResultIdRef.current = resultKey;
+        const liveNarrative = results?.str?.fiu_ind_str_draft?.fiu_ready_narrative;
+        if (liveNarrative) {
+          setFullContent(liveNarrative);
+          setDisplayed('');
+          setDone(false);
+          setFiled(false);
+          setStreaming(true);
+        }
+      }
+    }
+  }, [results, transaction.id]);
 
   useEffect(() => {
     if (!streaming || !fullContent) return;
@@ -52,6 +81,23 @@ export default function STRPanel({ transaction, onClose }: STRPanelProps) {
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  /* ── Auditing Loading State ─────────────────────────────────── */
+  if (auditing) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 28px', gap: 18, textAlign: 'center' }}>
+        <Loader2 size={40} color="var(--accent)" className="animate-spin" style={{ animation: 'spin 1s linear infinite' }} />
+        <div>
+          <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 8 }}>
+            Running Compliance Audit
+          </div>
+          <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.65, maxWidth: 400 }}>
+            Analyzing declared valuation, fetching live OpenSanctions watchlists, verifying DGFT/ICEGATE cargo status, and generating STR narrative via Groq Llama 3.3...
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   /* ── Initial / prompt state ─────────────────────────────────── */
   if (!done && !streaming) {
@@ -107,7 +153,7 @@ export default function STRPanel({ transaction, onClose }: STRPanelProps) {
           }}
         >
           <FileWarning size={15} />
-          Generate STR Draft
+          {onGenerate && !results ? "Run Compliance Audit & Generate STR" : "Generate STR Draft"}
         </button>
       </div>
     );

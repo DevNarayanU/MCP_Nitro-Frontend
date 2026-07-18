@@ -1,12 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import TopBar from '@/components/TopBar';
 import TransactionTable from '@/components/TransactionTable';
-import { mockTransactions } from '@/lib/mockData';
-import type { RiskLevel, EdpmsStatus } from '@/lib/types';
+import type { RiskLevel, EdpmsStatus, Transaction } from '@/lib/types';
 import { SectionHeader } from '@/components/ui';
-import { Filter, SlidersHorizontal } from 'lucide-react';
+import { SlidersHorizontal } from 'lucide-react';
 
 const riskOptions: { value: RiskLevel | 'all'; label: string }[] = [
   { value: 'all', label: 'All Risk Levels' },
@@ -23,11 +22,29 @@ const edpmsOptions: { value: EdpmsStatus | 'all'; label: string }[] = [
 ];
 
 export default function TransactionsPage() {
+  const [loading, setLoading] = useState(true);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [riskFilter, setRiskFilter] = useState<RiskLevel | 'all'>('all');
   const [edpmsFilter, setEdpmsFilter] = useState<EdpmsStatus | 'all'>('all');
   const [search, setSearch] = useState('');
 
-  const filtered = mockTransactions.filter((txn) => {
+  useEffect(() => {
+    async function fetchTransactions() {
+      try {
+        const res = await fetch('/api/transactions').then(r => r.json());
+        if (res.success) {
+          setTransactions(res.data);
+        }
+      } catch (err) {
+        console.error('Error fetching transactions:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchTransactions();
+  }, []);
+
+  const filtered = transactions.filter((txn) => {
     const matchRisk = riskFilter === 'all' || txn.riskLevel === riskFilter;
     const matchEdpms = edpmsFilter === 'all' || txn.edpmsStatus === edpmsFilter;
     const matchSearch =
@@ -51,11 +68,19 @@ export default function TransactionsPage() {
     outline: 'none',
   };
 
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, padding: 24, justifyContent: 'center', alignItems: 'center', height: '100vh', color: 'var(--text-muted)' }}>
+        <p>Loading Transactions...</p>
+      </div>
+    );
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
       <TopBar
         title="Transactions"
-        subtitle={`${filtered.length} of ${mockTransactions.length} transactions shown`}
+        subtitle={`${filtered.length} of ${transactions.length} transactions shown`}
       />
 
       <div style={{ padding: '24px', flex: 1 }}>
@@ -128,7 +153,7 @@ export default function TransactionsPage() {
         {/* Risk summary pills */}
         <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
           {(['high', 'medium', 'low'] as RiskLevel[]).map((level) => {
-            const count = mockTransactions.filter((t) => t.riskLevel === level).length;
+            const count = transactions.filter((t) => t.riskLevel === level).length;
             const colors: Record<RiskLevel, { bg: string; border: string; color: string; label: string }> = {
               high: { bg: 'var(--risk-high-bg)', border: 'var(--risk-high-border)', color: 'var(--risk-high-text)', label: 'High Risk' },
               medium: { bg: 'var(--risk-medium-bg)', border: 'var(--risk-medium-border)', color: 'var(--risk-medium-text)', label: 'Medium Risk' },

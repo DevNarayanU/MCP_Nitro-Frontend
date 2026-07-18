@@ -1,10 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import TopBar from '@/components/TopBar';
 import AlertsPane from '@/components/AlertsPane';
-import { mockAlerts } from '@/lib/mockData';
-import type { FlagSeverity } from '@/lib/types';
+import type { FlagSeverity, Alert } from '@/lib/types';
 import { SectionHeader } from '@/components/ui';
 
 const severityOptions: { value: FlagSeverity | 'all'; label: string }[] = [
@@ -15,22 +14,48 @@ const severityOptions: { value: FlagSeverity | 'all'; label: string }[] = [
 ];
 
 export default function AlertsPage() {
+  const [loading, setLoading] = useState(true);
+  const [alerts, setAlerts] = useState<Alert[]>([]);
   const [filter, setFilter] = useState<FlagSeverity | 'all'>('all');
   const [showUnreadOnly, setShowUnreadOnly] = useState(false);
 
-  const filtered = mockAlerts.filter((a) => {
+  useEffect(() => {
+    async function fetchAlerts() {
+      try {
+        const res = await fetch('/api/alerts').then(r => r.json());
+        if (res.success) {
+          setAlerts(res.data);
+        }
+      } catch (err) {
+        console.error('Error fetching alerts:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchAlerts();
+  }, []);
+
+  const filtered = alerts.filter((a) => {
     const matchSev = filter === 'all' || a.severity === filter;
     const matchRead = !showUnreadOnly || !a.read;
     return matchSev && matchRead;
   });
 
-  const unread = mockAlerts.filter((a) => !a.read).length;
+  const unread = alerts.filter((a) => !a.read).length;
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, padding: 24, justifyContent: 'center', alignItems: 'center', height: '100vh', color: 'var(--text-muted)' }}>
+        <p>Loading Alerts...</p>
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
       <TopBar
         title="Alerts"
-        subtitle={`${unread} unread · ${mockAlerts.length} total`}
+        subtitle={`${unread} unread · ${alerts.length} total`}
       />
 
       <div style={{ padding: '24px', flex: 1 }}>
@@ -75,8 +100,8 @@ export default function AlertsPage() {
         {/* Alert stats */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>
           {[
-            { label: 'Critical', count: mockAlerts.filter((a) => a.severity === 'critical').length, color: 'var(--risk-high-text)', bg: 'var(--risk-high-bg)', border: 'var(--risk-high-border)' },
-            { label: 'Warning', count: mockAlerts.filter((a) => a.severity === 'warning').length, color: 'var(--risk-medium-text)', bg: 'var(--risk-medium-bg)', border: 'var(--risk-medium-border)' },
+            { label: 'Critical', count: alerts.filter((a) => a.severity === 'critical').length, color: 'var(--risk-high-text)', bg: 'var(--risk-high-bg)', border: 'var(--risk-high-border)' },
+            { label: 'Warning', count: alerts.filter((a) => a.severity === 'warning').length, color: 'var(--risk-medium-text)', bg: 'var(--risk-medium-bg)', border: 'var(--risk-medium-border)' },
             { label: 'Unread', count: unread, color: 'var(--accent-text)', bg: 'var(--accent-wash)', border: 'var(--accent-border)' },
           ].map(({ label, count, color, bg, border }) => (
             <div
