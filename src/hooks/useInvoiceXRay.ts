@@ -255,7 +255,13 @@ export function useInvoiceXRay() {
           uri: `edpms-realization-status://${txn.exporter_id}`
         });
         const edpmsText = (edpmsResource.contents?.[0] as any)?.text;
-        const edpmsList = edpmsText ? JSON.parse(edpmsText) : [];
+        let edpmsList: any[] = [];
+        try {
+          const parsed = edpmsText ? JSON.parse(edpmsText) : [];
+          if (Array.isArray(parsed)) edpmsList = parsed;
+        } catch {
+          edpmsList = [];
+        }
         const edpms = edpmsList.find((r: any) => r.invoice_id === id);
         if (edpms) {
           realized_amount_usd = edpms.realized_amount_usd;
