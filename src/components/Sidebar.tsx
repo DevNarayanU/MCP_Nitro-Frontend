@@ -6,12 +6,13 @@ import {
   FileText,
   Search,
   RefreshCw,
+  TrendingUp,
 } from "lucide-react";
 import type { EvaluationResults } from "../types/invoicexray";
 
 interface SidebarProps {
-  activePage: "dashboard" | "audit" | "reports";
-  onNavigate: (page: "dashboard" | "audit" | "reports") => void;
+  activePage: "dashboard" | "audit" | "reports" | "benchmarks";
+  onNavigate: (page: "dashboard" | "audit" | "reports" | "benchmarks") => void;
   selectedId: string | null;
   onSelectTransaction: (id: string) => void;
   searchQuery: string;
@@ -127,6 +128,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
             <span className="text-[10px] font-mono bg-zinc-800 text-zinc-300 px-1.5 py-0.5 rounded border border-zinc-700">
               STR / ETX
+            </span>
+          </button>
+
+          {/* Page 4: Commodity Benchmarks */}
+          <button
+            onClick={() => onNavigate("benchmarks")}
+            className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+              activePage === "benchmarks"
+                ? "bg-red-500/10 text-red-400 border border-red-500/30 shadow-sm"
+                : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900"
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <TrendingUp className="w-4 h-4" />
+              <span>Market Benchmarks</span>
+            </div>
+            <span className="text-[10px] font-mono bg-zinc-800 text-zinc-300 px-1.5 py-0.5 rounded border border-zinc-700">
+              LME / ICE
             </span>
           </button>
         </nav>

@@ -102,3 +102,21 @@ export interface EvaluationResults {
   counterfactualReportHtml?: string;
   rbiFormEtxText?: string;
 }
+
+export interface CommodityBenchmark {
+  hs_code: string;
+  commodity_name: string;
+  spot_price_usd: number;
+  unit: string;
+  mean_price_90d: number;
+  stddev_price_90d: number;
+  min_price_90d: number;
+  max_price_90d: number;
+  percentile_25: number;
+  percentile_75: number;
+  seasonal_adjustment_factor: number;
+  quality_grade: string;
+  source: string;
+  last_updated: string;
+  currency: string;
+}

@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
-import type { EvaluationResults, AccumulatedFlag } from "../types/invoicexray";
+import type { EvaluationResults, AccumulatedFlag, CommodityBenchmark } from "../types/invoicexray";
 
 // Browser-safe, native EventSource/Fetch-based MCP Client to prevent Node dependency crashes in the browser
 class BrowserMcpClient {
@@ -154,6 +154,8 @@ export function useInvoiceXRay() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [riskFilter, setRiskFilter] = useState<string>("ALL");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [benchmarks, setBenchmarks] = useState<CommodityBenchmark[]>([]);
+  const [isLoadingBenchmarks, setIsLoadingBenchmarks] = useState<boolean>(false);
   
   const clientRef = useRef<BrowserMcpClient | null>(null);
 
@@ -175,6 +177,23 @@ export function useInvoiceXRay() {
     console.log("[useInvoiceXRay] Connected to live MCP server!");
     return client;
   }, []);
+
+  const fetchBenchmarks = useCallback(async () => {
+    setIsLoadingBenchmarks(true);
+    try {
+      const client = await getClient();
+      console.log("[useInvoiceXRay] Fetching commodity benchmarks from MCP...");
+      const list = await callTool<CommodityBenchmark[]>(client, "list_all_benchmarks", {});
+      if (list && Array.isArray(list)) {
+        setBenchmarks(list);
+        console.log("[useInvoiceXRay] Loaded benchmarks:", list);
+      }
+    } catch (err: any) {
+      console.error("[useInvoiceXRay] Failed to fetch commodity benchmarks:", err);
+    } finally {
+      setIsLoadingBenchmarks(false);
+    }
+  }, [getClient]);
 
   // Evaluate single transaction via live MCP tools (with mock fallback)
   const evaluateTransaction = useCallback(async (id: string): Promise<EvaluationResults> => {
@@ -501,6 +520,7 @@ export function useInvoiceXRay() {
   // Orchestrate sequential loading of all transaction IDs from database
   const evaluateAll = useCallback(async () => {
     setIsEvaluating(true);
+    fetchBenchmarks(); // Fetch commodity pricing benchmarks from database
     let ids: string[] = [];
     try {
       const client = await getClient();
@@ -526,7 +546,7 @@ export function useInvoiceXRay() {
       await evaluateTransaction(id);
     }
     setIsEvaluating(false);
-  }, [getClient, evaluateTransaction]);
+  }, [getClient, evaluateTransaction, fetchBenchmarks]);
 
   // Clean connection cleanup on unmount
   useEffect(() => {
@@ -646,6 +666,9 @@ export function useInvoiceXRay() {
     setRiskFilter,
     toastMessage,
     showToast,
+    benchmarks,
+    isLoadingBenchmarks,
+    fetchBenchmarks,
   };
 }
 
