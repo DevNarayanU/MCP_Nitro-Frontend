@@ -7,9 +7,13 @@ interface CrossAgencyPanelProps {
 }
 
 export const CrossAgencyPanel: React.FC<CrossAgencyPanelProps> = ({ crossAgency }) => {
-  const isDgftCaution = crossAgency?.dgft_status?.status === "CAUTION_LISTED";
-  const isIcegateAnomaly = crossAgency?.icegate_customs?.anomaly_detected ?? false;
-  const isGeospatialAnomaly = crossAgency?.geospatial_routing?.is_landlocked ?? false;
+  const safeDgft = crossAgency?.dgft_status || { status: "ACTIVE", iec: "N/A", issue_details: undefined };
+  const safeIcegate = crossAgency?.icegate_customs || { anomaly_detected: false, shipping_bill: "N/A", declared_weight_kg: 0, customs_logged_weight_kg: 0, weight_variance_pct: 0 };
+  const safeGeo = crossAgency?.geospatial_routing || { is_landlocked: false, origin_port: "N/A", discharge_port: "N/A", country: "N/A", anomaly: undefined };
+
+  const isDgftCaution = safeDgft.status === "CAUTION_LISTED";
+  const isIcegateAnomaly = safeIcegate.anomaly_detected;
+  const isGeospatialAnomaly = safeGeo.is_landlocked;
 
   return (
     <div className="bg-zinc-900/90 border border-zinc-800 rounded-xl p-6 shadow-lg space-y-4">
@@ -47,16 +51,16 @@ export const CrossAgencyPanel: React.FC<CrossAgencyPanelProps> = ({ crossAgency 
                   : "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
               }`}
             >
-              {crossAgency.dgft_status.status}
+              {safeDgft.status}
             </span>
           </div>
           <div className="text-xs text-zinc-400 mt-2 space-y-1">
             <div>
-              IEC Code: <span className="text-zinc-200 font-bold">{crossAgency.dgft_status.iec}</span>
+              IEC Code: <span className="text-zinc-200 font-bold">{safeDgft.iec}</span>
             </div>
-            {crossAgency.dgft_status.issue_details && (
+            {safeDgft.issue_details && (
               <p className="text-red-400 font-semibold text-xs mt-1">
-                ⚠ {crossAgency.dgft_status.issue_details}
+                ⚠ {safeDgft.issue_details}
               </p>
             )}
           </div>
@@ -91,13 +95,13 @@ export const CrossAgencyPanel: React.FC<CrossAgencyPanelProps> = ({ crossAgency 
           </div>
           <div className="text-xs text-zinc-400 mt-2 grid grid-cols-2 gap-3">
             <div>
-              SB Ref: <span className="text-zinc-200 font-bold">{crossAgency.icegate_customs.shipping_bill}</span>
+              SB Ref: <span className="text-zinc-200 font-bold">{safeIcegate.shipping_bill}</span>
             </div>
             <div>
-              Declared: <span className="text-zinc-200 font-bold">{crossAgency.icegate_customs.declared_weight_kg} kg</span>
+              Declared: <span className="text-zinc-200 font-bold">{safeIcegate.declared_weight_kg} kg</span>
             </div>
             <div>
-              Customs Scanned: <span className="text-zinc-200 font-bold">{crossAgency.icegate_customs.customs_logged_weight_kg} kg</span>
+              Customs Scanned: <span className="text-zinc-200 font-bold">{safeIcegate.customs_logged_weight_kg} kg</span>
             </div>
             <div>
               Variance:{" "}
@@ -106,7 +110,7 @@ export const CrossAgencyPanel: React.FC<CrossAgencyPanelProps> = ({ crossAgency 
                   isIcegateAnomaly ? "text-red-400" : "text-emerald-400"
                 }`}
               >
-                {crossAgency.icegate_customs.weight_variance_pct}%
+                {safeIcegate.weight_variance_pct}%
               </span>
             </div>
           </div>
@@ -141,12 +145,12 @@ export const CrossAgencyPanel: React.FC<CrossAgencyPanelProps> = ({ crossAgency 
           </div>
           <div className="text-xs text-zinc-400 mt-2 space-y-1">
             <div>
-              Port Corridor: <span className="text-zinc-200 font-bold">{crossAgency.geospatial_routing.origin_port}</span> ➔{" "}
-              <span className="text-amber-400 font-bold">{crossAgency.geospatial_routing.discharge_port} ({crossAgency.geospatial_routing.country})</span>
+              Port Corridor: <span className="text-zinc-200 font-bold">{safeGeo.origin_port}</span> ➔{" "}
+              <span className="text-amber-400 font-bold">{safeGeo.discharge_port} ({safeGeo.country})</span>
             </div>
-            {crossAgency.geospatial_routing.anomaly && (
+            {safeGeo.anomaly && (
               <p className="text-red-400 font-semibold text-xs mt-1">
-                ⚠ {crossAgency.geospatial_routing.anomaly}
+                ⚠ {safeGeo.anomaly}
               </p>
             )}
           </div>
