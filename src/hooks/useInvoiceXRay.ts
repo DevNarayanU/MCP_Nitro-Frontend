@@ -140,9 +140,16 @@ async function callTool<T>(
   args: Record<string, unknown>
 ): Promise<T> {
   const response = await client.callTool(toolName, args);
+  if (response.isError) {
+    const errText = (response.content as Array<{ type: string; text: string }>)?.[0]?.text || `Tool execution failed: ${toolName}`;
+    throw new Error(errText);
+  }
   const textContent = response.content as Array<{ type: string; text: string }>;
   const text = textContent?.[0]?.text;
   if (!text) throw new Error(`Empty response from tool: ${toolName}`);
+  if (text.startsWith("Error:") || text.startsWith("Error executing tool")) {
+    throw new Error(text);
+  }
   return JSON.parse(text) as T;
 }
 
@@ -154,9 +161,10 @@ export function useInvoiceXRay() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [riskFilter, setRiskFilter] = useState<string>("ALL");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
   const [benchmarks, setBenchmarks] = useState<CommodityBenchmark[]>([]);
   const [isLoadingBenchmarks, setIsLoadingBenchmarks] = useState<boolean>(false);
-  
+
   const clientRef = useRef<BrowserMcpClient | null>(null);
 
   const showToast = useCallback((msg: string) => {
@@ -168,12 +176,18 @@ export function useInvoiceXRay() {
   const getClient = useCallback(async (): Promise<BrowserMcpClient> => {
     if (clientRef.current) return clientRef.current;
 
+    const isLocalhost = typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+    const defaultServerUrl = isLocalhost
+      ? "http://localhost:3000/sse"
+      : "https://mcp-server-6a5-hackoverflow-amrita-university-amritapuri-campus.app.nitrocloud.ai/sse";
+
     const envProcess = typeof globalThis !== "undefined" ? (globalThis as any).process : undefined;
     const sseUrl =
       (typeof import.meta !== "undefined" && import.meta.env?.VITE_MCP_SERVER_URL) ||
       envProcess?.env?.NEXT_PUBLIC_MCP_SERVER_URL ||
       envProcess?.env?.VITE_MCP_SERVER_URL ||
-      "https://mcp-server-6a5-hackoverflow-amrita-university-amritapuri-campus.app.nitrocloud.ai/sse";
+      defaultServerUrl;
+
     console.log(`[useInvoiceXRay] Connecting to live MCP server at ${sseUrl}...`);
     const client = new BrowserMcpClient(sseUrl);
 
