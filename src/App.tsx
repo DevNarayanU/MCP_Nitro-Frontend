@@ -131,6 +131,10 @@ export function App() {
               </div>
 
               <div className="flex items-center gap-2.5">
+                <span className="px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-xs font-mono text-zinc-300">
+                  SELECTED INVOICE: <strong className="text-red-400">{selectedId}</strong>
+                </span>
+
                 {/* Theme Toggle Button */}
                 <button
                   onClick={toggleTheme}
@@ -140,10 +144,6 @@ export function App() {
                   {theme === "dark" ? <Sun className="w-3.5 h-3.5 text-amber-500" /> : <Moon className="w-3.5 h-3.5 text-indigo-400" />}
                   <span>{theme === "dark" ? "LIGHT" : "DARK"}</span>
                 </button>
-
-                <span className="px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-xs font-mono text-zinc-300">
-                  SELECTED INVOICE: <strong className="text-red-400">{selectedId}</strong>
-                </span>
               </div>
             </div>
 
