@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Logo } from "./Logo";
 
 interface SplashPreloaderProps {
   onComplete?: () => void;
@@ -94,12 +95,22 @@ export const SplashPreloader: React.FC<SplashPreloaderProps> = ({ onComplete }) 
       }`}
     >
       <div className="relative border border-zinc-900 bg-zinc-900/30 backdrop-blur-sm p-10 rounded-xl shadow-2xl min-w-[380px] text-center space-y-6 overflow-hidden">
+        {/* Logo Icon */}
+        <div className="flex justify-center animate-pulse">
+          <Logo
+            className="flex flex-col items-center"
+            iconClassName="w-16 h-16"
+            textClassName="hidden"
+            subtextClassName="hidden"
+          />
+        </div>
+
         {/* Phase 1: Main Project Title */}
         <div className="space-y-2">
           <div className="text-xl font-bold tracking-widest text-zinc-100 uppercase font-mono min-h-[28px] flex items-center justify-center">
             <span>{typedTitle}</span>
             {typedTitle.length < fullTitle.length && (
-              <span className="animate-ping text-red-500 font-normal ml-0.5">|</span>
+              <span className="animate-ping text-emerald-500 font-normal ml-0.5">|</span>
             )}
           </div>
           <p className="text-[10px] text-zinc-400 font-mono tracking-widest uppercase opacity-70">

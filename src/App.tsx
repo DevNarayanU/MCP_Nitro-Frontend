@@ -6,7 +6,8 @@ import { TransactionsTable } from "./components/TransactionsTable";
 import { AuditPage } from "./components/Pages/AuditPage";
 import { ReportsPage } from "./components/Pages/ReportsPage";
 import { SplashPreloader } from "./components/SplashPreloader";
-import { CheckCircle, Menu, X, ShieldAlert, Sun, Moon } from "lucide-react";
+import { CheckCircle, Menu, X, Sun, Moon } from "lucide-react";
+import { Logo } from "./components/Logo";
 
 export function App() {
   const [activePage, setActivePage] = useState<"dashboard" | "audit" | "reports">("dashboard");
@@ -72,10 +73,12 @@ export function App() {
 
       {/* Mobile Top Bar */}
       <div className="md:hidden bg-zinc-950 border-b border-zinc-800 p-4 flex items-center justify-between sticky top-0 z-40">
-        <div className="flex items-center gap-2">
-          <ShieldAlert className="w-5 h-5 text-red-500" />
-          <span className="font-extrabold text-white text-base">INVOICEX-RAY</span>
-        </div>
+        <Logo
+          className="flex items-center gap-2"
+          iconClassName="w-6 h-6"
+          textClassName="text-white text-base"
+          subtextClassName="hidden"
+        />
         <div className="flex items-center gap-2">
           <button
             onClick={toggleTheme}
