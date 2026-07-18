@@ -220,6 +220,33 @@ export function useInvoiceXRay() {
       const client = await getClient();
       console.log(`[useInvoiceXRay] Running live TBML compliance pipeline for: ${id}`);
 
+      // Fast-path: Try server-side evaluateTransaction tool if supported
+      try {
+        const serverEval = await callTool<any>(client, "evaluateTransaction", { invoice_id: id });
+        if (serverEval && serverEval.overallRisk) {
+          let counterfactualReportHtml = "";
+          let rbiFormEtxText = "";
+          try {
+            const reportRes = await callTool<{ html: string }>(client, "generate_counterfactual_report", { invoice_id: id });
+            counterfactualReportHtml = reportRes.html;
+          } catch {}
+          try {
+            const filingRes = await callTool<{ filing: string }>(client, "generate_rbi_filing", { invoice_id: id });
+            rbiFormEtxText = filingRes.filing;
+          } catch {}
+
+          const fullResult: EvaluationResults = {
+            ...serverEval,
+            counterfactualReportHtml,
+            rbiFormEtxText,
+          };
+          setEvaluations((prev) => ({ ...prev, [id]: fullResult }));
+          return fullResult;
+        }
+      } catch (fastErr: any) {
+        console.log(`[useInvoiceXRay] Server-side evaluateTransaction fast-path fallback:`, fastErr?.message);
+      }
+
       // 1. Fetch transaction via resource
       const resource = await client.readResource({
         uri: `trade-invoice-feed://${id}`
