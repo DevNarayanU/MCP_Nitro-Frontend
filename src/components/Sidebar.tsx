@@ -18,7 +18,6 @@ interface SidebarProps {
   onSearchChange: (q: string) => void;
   onReevaluateAll: () => void;
   isEvaluating: boolean;
-  onReplayIntro: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -30,7 +29,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onSearchChange,
   onReevaluateAll,
   isEvaluating,
-  onReplayIntro,
 }) => {
   const seedKeys = Object.keys(SEED_TRANSACTIONS);
 
@@ -191,12 +189,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <span>{isEvaluating ? "EVALUATING..." : "RUN MCP PIPELINE"}</span>
         </button>
 
-        <button
-          onClick={onReplayIntro}
-          className="w-full flex items-center justify-center gap-2 py-1.5 px-3 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 border border-zinc-800 text-[11px] font-mono transition-all"
-        >
-          <span>REPLAY INTRO</span>
-        </button>
 
         <div className="flex items-center justify-between text-[11px] font-mono text-zinc-400 px-1 pt-1">
           <div className="flex items-center gap-1.5">
