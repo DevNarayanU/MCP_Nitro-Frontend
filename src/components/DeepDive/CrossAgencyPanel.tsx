@@ -7,9 +7,9 @@ interface CrossAgencyPanelProps {
 }
 
 export const CrossAgencyPanel: React.FC<CrossAgencyPanelProps> = ({ crossAgency }) => {
-  const isDgftCaution = crossAgency.dgft_status.status === "CAUTION_LISTED";
-  const isIcegateAnomaly = crossAgency.icegate_customs.anomaly_detected;
-  const isGeospatialAnomaly = crossAgency.geospatial_routing.is_landlocked;
+  const isDgftCaution = crossAgency?.dgft_status?.status === "CAUTION_LISTED";
+  const isIcegateAnomaly = crossAgency?.icegate_customs?.anomaly_detected ?? false;
+  const isGeospatialAnomaly = crossAgency?.geospatial_routing?.is_landlocked ?? false;
 
   return (
     <div className="bg-zinc-900/90 border border-zinc-800 rounded-xl p-6 shadow-lg space-y-4">

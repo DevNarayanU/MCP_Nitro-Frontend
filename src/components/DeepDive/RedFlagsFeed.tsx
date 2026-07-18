@@ -7,6 +7,8 @@ interface RedFlagsFeedProps {
 }
 
 export const RedFlagsFeed: React.FC<RedFlagsFeedProps> = ({ flags }) => {
+  const safeFlags = flags || [];
+
   return (
     <div className="bg-zinc-900/90 border border-zinc-800 rounded-xl p-6 shadow-lg space-y-4">
       <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
@@ -15,7 +17,7 @@ export const RedFlagsFeed: React.FC<RedFlagsFeedProps> = ({ flags }) => {
             <AlertOctagon className="w-5 h-5" />
           </div>
           <h3 className="text-base font-bold text-white uppercase tracking-wider font-sans">
-            Accumulated TBML Red Flags Feed ({flags.length})
+            Accumulated TBML Red Flags Feed ({safeFlags.length})
           </h3>
         </div>
         <span className="text-xs font-mono text-zinc-400">
@@ -23,14 +25,14 @@ export const RedFlagsFeed: React.FC<RedFlagsFeedProps> = ({ flags }) => {
         </span>
       </div>
 
-      {flags.length === 0 ? (
+      {safeFlags.length === 0 ? (
         <div className="bg-emerald-950/20 border border-emerald-800/40 rounded-xl p-6 text-center font-mono text-sm text-emerald-400 flex items-center justify-center gap-2">
           <ShieldCheck className="w-5 h-5 text-emerald-400" />
           Zero red flags accumulated. All compliance rules validated clean.
         </div>
       ) : (
         <div className="space-y-4 font-mono text-sm">
-          {flags.map((flag, idx) => {
+          {safeFlags.map((flag, idx) => {
             const isCritical = flag.severity === "CRITICAL";
             const isHigh = flag.severity === "HIGH";
 

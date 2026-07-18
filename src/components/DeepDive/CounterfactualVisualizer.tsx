@@ -19,9 +19,11 @@ export const CounterfactualVisualizer: React.FC<CounterfactualVisualizerProps> =
     );
   }
 
-  const benchmarkTotal = declaredValue - gap.gap;
-  const maxTotalVal = Math.max(declaredValue, benchmarkTotal) * 1.15;
-  const declaredBarWidthPct = Math.min(100, Math.max(12, (declaredValue / maxTotalVal) * 100));
+  const safeDeclared = declaredValue || 0;
+  const safeGap = gap.gap || 0;
+  const benchmarkTotal = Math.max(0, safeDeclared - safeGap);
+  const maxTotalVal = Math.max(safeDeclared, benchmarkTotal, 1) * 1.15;
+  const declaredBarWidthPct = Math.min(100, Math.max(12, (safeDeclared / maxTotalVal) * 100));
   const benchmarkBarWidthPct = Math.min(100, Math.max(12, (benchmarkTotal / maxTotalVal) * 100));
 
   const isOverInvoiced = gap.direction === "OVER_INVOICED";
