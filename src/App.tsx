@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useInvoiceXRay } from "./hooks/useInvoiceXRay";
 import { Sidebar } from "./components/Sidebar";
 import { MetricsOverview } from "./components/MetricsOverview";
@@ -6,12 +6,28 @@ import { TransactionsTable } from "./components/TransactionsTable";
 import { AuditPage } from "./components/Pages/AuditPage";
 import { ReportsPage } from "./components/Pages/ReportsPage";
 import { SplashPreloader } from "./components/SplashPreloader";
-import { CheckCircle, Menu, X, ShieldAlert } from "lucide-react";
+import { CheckCircle, Menu, X, ShieldAlert, Sun, Moon } from "lucide-react";
 
 export function App() {
   const [activePage, setActivePage] = useState<"dashboard" | "audit" | "reports">("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
-  const [splashKey, setSplashKey] = useState<number>(0);
+  const [theme, setTheme] = useState<"dark" | "light">(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("theme");
+      if (saved === "light" || saved === "dark") return saved;
+    }
+    return "dark";
+  });
+
+  useEffect(() => {
+    const root = window.document.documentElement;
+    root.setAttribute("data-theme", theme);
+    localStorage.setItem("theme", theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === "dark" ? "light" : "dark"));
+  };
 
   const {
     evaluations,
@@ -41,14 +57,10 @@ export function App() {
     }
   };
 
-  const handleReplayIntro = () => {
-    setSplashKey((prev) => prev + 1);
-  };
-
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans flex flex-col md:flex-row selection:bg-red-500/30 selection:text-white">
       {/* Website Entry Preloader Splash Screen */}
-      <SplashPreloader key={splashKey} />
+      <SplashPreloader />
 
       {/* Toast Notification */}
       {toastMessage && (
@@ -64,12 +76,21 @@ export function App() {
           <ShieldAlert className="w-5 h-5 text-red-500" />
           <span className="font-extrabold text-white text-base">INVOICEX-RAY</span>
         </div>
-        <button
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="p-2 rounded bg-zinc-900 border border-zinc-800 text-zinc-300"
-        >
-          {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={toggleTheme}
+            className="p-2 rounded bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white transition-colors"
+            title="Toggle color theme"
+          >
+            {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </button>
+          <button
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="p-2 rounded bg-zinc-900 border border-zinc-800 text-zinc-300"
+          >
+            {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
+        </div>
       </div>
 
       {/* Sidebar Component */}
@@ -89,7 +110,6 @@ export function App() {
           onSearchChange={setSearchQuery}
           onReevaluateAll={evaluateAll}
           isEvaluating={isEvaluating}
-          onReplayIntro={handleReplayIntro}
           transactionIds={transactionIds}
           evaluations={evaluations}
         />
@@ -110,8 +130,18 @@ export function App() {
                 </p>
               </div>
 
-              <div className="flex items-center gap-2">
-                <span className="px-3 py-1 rounded-md bg-zinc-900 border border-zinc-800 text-xs font-mono text-zinc-300">
+              <div className="flex items-center gap-2.5">
+                {/* Theme Toggle Button */}
+                <button
+                  onClick={toggleTheme}
+                  className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-800 text-xs font-mono font-semibold transition-all cursor-pointer shadow-sm hover:shadow active:scale-95"
+                  title="Toggle color theme"
+                >
+                  {theme === "dark" ? <Sun className="w-3.5 h-3.5 text-amber-500" /> : <Moon className="w-3.5 h-3.5 text-indigo-400" />}
+                  <span>{theme === "dark" ? "LIGHT" : "DARK"}</span>
+                </button>
+
+                <span className="px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-xs font-mono text-zinc-300">
                   SELECTED INVOICE: <strong className="text-red-400">{selectedId}</strong>
                 </span>
               </div>
@@ -139,6 +169,8 @@ export function App() {
             onSelectTransaction={(id) => handleSelectTransaction(id)}
             onNavigate={setActivePage}
             transactionIds={transactionIds}
+            theme={theme}
+            onToggleTheme={toggleTheme}
           />
         )}
 
@@ -153,6 +185,8 @@ export function App() {
             exportSTRNarrative={exportSTRNarrative}
             showToast={showToast}
             transactionIds={transactionIds}
+            theme={theme}
+            onToggleTheme={toggleTheme}
           />
         )}
       </main>
