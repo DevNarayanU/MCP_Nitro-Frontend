@@ -266,7 +266,7 @@ STATUS: PENDING AD AUTHORISED OFFICER APPROVAL & EDPMS REGISTRATION
       try {
         await navigator.clipboard.writeText(narrative);
         showToast("STR Narrative copied to clipboard!");
-      } catch (err) {
+      } catch {
         showToast("Copied text to clipboard");
       }
       return narrative;
