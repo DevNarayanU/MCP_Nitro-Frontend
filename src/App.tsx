@@ -1,0 +1,157 @@
+import { useState } from "react";
+import { useInvoiceXRay } from "./hooks/useInvoiceXRay";
+import { Sidebar } from "./components/Sidebar";
+import { MetricsOverview } from "./components/MetricsOverview";
+import { TransactionsTable } from "./components/TransactionsTable";
+import { AuditPage } from "./components/Pages/AuditPage";
+import { ReportsPage } from "./components/Pages/ReportsPage";
+import { SplashPreloader } from "./components/SplashPreloader";
+import { CheckCircle, Menu, X, ShieldAlert } from "lucide-react";
+
+export function App() {
+  const [activePage, setActivePage] = useState<"dashboard" | "audit" | "reports">("dashboard");
+  const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
+  const [splashKey, setSplashKey] = useState<number>(0);
+
+  const {
+    filteredEvaluations,
+    aggregateMetrics,
+    isEvaluating,
+    selectedId,
+    setSelectedId,
+    selectedEvaluation,
+    evaluateAll,
+    generateCounterfactualReport,
+    generateRBIFormETX,
+    exportSTRNarrative,
+    searchQuery,
+    setSearchQuery,
+    riskFilter,
+    setRiskFilter,
+    toastMessage,
+    showToast,
+  } = useInvoiceXRay();
+
+  const handleSelectTransaction = (id: string, targetView?: "audit" | "reports") => {
+    setSelectedId(id);
+    if (targetView) {
+      setActivePage(targetView);
+    }
+  };
+
+  const handleReplayIntro = () => {
+    setSplashKey((prev) => prev + 1);
+  };
+
+  return (
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans flex flex-col md:flex-row selection:bg-red-500/30 selection:text-white">
+      {/* Website Entry Preloader Splash Screen */}
+      <SplashPreloader key={splashKey} />
+
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed bottom-6 right-6 z-50 bg-zinc-900 border border-red-500/40 text-red-400 px-5 py-3 rounded-xl shadow-2xl font-mono text-xs flex items-center gap-2.5 animate-bounce">
+          <CheckCircle className="w-4 h-4 text-emerald-400" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
+      {/* Mobile Top Bar */}
+      <div className="md:hidden bg-zinc-950 border-b border-zinc-800 p-4 flex items-center justify-between sticky top-0 z-40">
+        <div className="flex items-center gap-2">
+          <ShieldAlert className="w-5 h-5 text-red-500" />
+          <span className="font-extrabold text-white text-base">INVOICEX-RAY</span>
+        </div>
+        <button
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          className="p-2 rounded bg-zinc-900 border border-zinc-800 text-zinc-300"
+        >
+          {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+        </button>
+      </div>
+
+      {/* Sidebar Component */}
+      <div className={`${sidebarOpen ? "block" : "hidden"} md:block z-30`}>
+        <Sidebar
+          activePage={activePage}
+          onNavigate={(page) => {
+            setActivePage(page);
+            setSidebarOpen(false);
+          }}
+          selectedId={selectedId}
+          onSelectTransaction={(id) => {
+            handleSelectTransaction(id);
+            setSidebarOpen(false);
+          }}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          onReevaluateAll={evaluateAll}
+          isEvaluating={isEvaluating}
+          onReplayIntro={handleReplayIntro}
+        />
+      </div>
+
+      {/* Main Content Viewport */}
+      <main className="flex-1 p-6 md:p-8 max-w-[1600px] overflow-y-auto">
+        {/* Page 1: Dashboard */}
+        {activePage === "dashboard" && (
+          <div className="space-y-8 animate-in fade-in duration-300">
+            <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-zinc-800/80">
+              <div>
+                <h1 className="text-2xl font-extrabold text-white tracking-tight font-sans">
+                  Risk Overview & Compliance Dashboard
+                </h1>
+                <p className="text-sm text-zinc-400 font-mono mt-1">
+                  Live Trade-Based Money Laundering (TBML) Monitoring System
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="px-3 py-1 rounded-md bg-zinc-900 border border-zinc-800 text-xs font-mono text-zinc-300">
+                  SELECTED INVOICE: <strong className="text-red-400">{selectedId}</strong>
+                </span>
+              </div>
+            </div>
+
+            <MetricsOverview metrics={aggregateMetrics} />
+
+            <TransactionsTable
+              evaluations={filteredEvaluations}
+              selectedId={selectedId}
+              onSelectTransaction={(id, view) => {
+                handleSelectTransaction(id, view || "audit");
+              }}
+              riskFilter={riskFilter}
+              onRiskFilterChange={setRiskFilter}
+            />
+          </div>
+        )}
+
+        {/* Page 2: Audit Deep-Dive */}
+        {activePage === "audit" && (
+          <AuditPage
+            evaluation={selectedEvaluation}
+            selectedId={selectedId}
+            onSelectTransaction={(id) => handleSelectTransaction(id)}
+            onNavigate={setActivePage}
+          />
+        )}
+
+        {/* Page 3: Reports & Filings Hub */}
+        {activePage === "reports" && (
+          <ReportsPage
+            evaluation={selectedEvaluation}
+            selectedId={selectedId}
+            onSelectTransaction={(id) => handleSelectTransaction(id)}
+            generateCounterfactualReport={generateCounterfactualReport}
+            generateRBIFormETX={generateRBIFormETX}
+            exportSTRNarrative={exportSTRNarrative}
+            showToast={showToast}
+          />
+        )}
+      </main>
+    </div>
+  );
+}
+
+export default App;
