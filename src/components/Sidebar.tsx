@@ -1,6 +1,5 @@
 import React from "react";
 import {
-  ShieldAlert,
   LayoutGrid,
   FileSpreadsheet,
   FileText,
@@ -9,6 +8,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import type { EvaluationResults } from "../types/invoicexray";
+import { Logo } from "./Logo";
 
 interface SidebarProps {
   activePage: "dashboard" | "audit" | "reports" | "benchmarks";
@@ -41,21 +41,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
     <aside className="w-72 bg-zinc-950 border-r border-zinc-800/80 flex flex-col justify-between shrink-0 min-h-screen sticky top-0 h-screen overflow-y-auto">
       <div className="p-5 space-y-6">
         {/* Brand Header */}
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-red-600 to-amber-600 p-0.5 shadow-lg shadow-red-950/60">
-            <div className="h-full w-full bg-zinc-950 rounded-[7px] flex items-center justify-center">
-              <ShieldAlert className="w-6 h-6 text-red-500" />
-            </div>
-          </div>
-          <div>
-            <h1 className="font-extrabold tracking-tight text-white text-lg font-sans flex items-center gap-1.5">
-              INVOICE<span className="text-red-500">X-RAY</span>
-            </h1>
-            <span className="text-xs text-zinc-400 font-mono">
-              Trade Compliance Engine
-            </span>
-          </div>
-        </div>
+        <Logo
+          className="flex items-center gap-3.5 px-1.5 py-2.5 mb-2"
+          iconClassName="w-12 h-12 shrink-0"
+          textClassName="text-white text-xl"
+          subtextClassName="text-[11px] text-zinc-400 font-sans block leading-tight"
+        />
 
         {/* Global Search */}
         <div className="relative">
