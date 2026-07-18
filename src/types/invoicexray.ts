@@ -99,4 +99,6 @@ export interface EvaluationResults {
   evaluatedAt: string;
   transactionMeta: TransactionMeta;
   crossAgency: CrossAgencyVerification;
+  counterfactualReportHtml?: string;
+  rbiFormEtxText?: string;
 }

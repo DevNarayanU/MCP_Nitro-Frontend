@@ -2,7 +2,6 @@ import React from "react";
 import type { EvaluationResults } from "../../types/invoicexray";
 import { STREditor } from "../DeepDive/STREditor";
 import { RegulatoryActionsPanel } from "../DeepDive/RegulatoryActionsPanel";
-import { SEED_TRANSACTIONS } from "../../data/seedTransactions";
 import { FileText, Sun, Moon } from "lucide-react";
 
 interface ReportsPageProps {
@@ -13,6 +12,7 @@ interface ReportsPageProps {
   generateRBIFormETX: (id: string) => string;
   exportSTRNarrative: (id: string) => Promise<string>;
   showToast: (msg: string) => void;
+  transactionIds: string[];
   theme: "dark" | "light";
   onToggleTheme: () => void;
 }
@@ -25,10 +25,11 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({
   generateRBIFormETX,
   exportSTRNarrative,
   showToast,
+  transactionIds,
   theme,
   onToggleTheme,
 }) => {
-  const seedKeys = Object.keys(SEED_TRANSACTIONS);
+  const seedKeys = transactionIds || [];
 
   if (!evaluation) {
     return (

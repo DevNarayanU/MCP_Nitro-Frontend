@@ -30,6 +30,8 @@ export function App() {
   };
 
   const {
+    evaluations,
+    transactionIds,
     filteredEvaluations,
     aggregateMetrics,
     isEvaluating,
@@ -108,6 +110,8 @@ export function App() {
           onSearchChange={setSearchQuery}
           onReevaluateAll={evaluateAll}
           isEvaluating={isEvaluating}
+          transactionIds={transactionIds}
+          evaluations={evaluations}
         />
       </div>
 
@@ -164,6 +168,7 @@ export function App() {
             selectedId={selectedId}
             onSelectTransaction={(id) => handleSelectTransaction(id)}
             onNavigate={setActivePage}
+            transactionIds={transactionIds}
             theme={theme}
             onToggleTheme={toggleTheme}
           />
@@ -179,6 +184,7 @@ export function App() {
             generateRBIFormETX={generateRBIFormETX}
             exportSTRNarrative={exportSTRNarrative}
             showToast={showToast}
+            transactionIds={transactionIds}
             theme={theme}
             onToggleTheme={toggleTheme}
           />
