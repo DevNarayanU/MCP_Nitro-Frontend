@@ -600,9 +600,8 @@ export function useInvoiceXRay() {
       setSelectedId((prev) => (prev && ids.includes(prev) ? prev : ids[0]));
     }
 
-    for (const id of ids) {
-      await evaluateTransaction(id);
-    }
+    // Evaluate all transactions concurrently in parallel for maximum speed
+    await Promise.all(ids.map((id) => evaluateTransaction(id)));
     setIsEvaluating(false);
   }, [getClient, evaluateTransaction, fetchBenchmarks]);
 
