@@ -5,11 +5,12 @@ import { MetricsOverview } from "./components/MetricsOverview";
 import { TransactionsTable } from "./components/TransactionsTable";
 import { AuditPage } from "./components/Pages/AuditPage";
 import { ReportsPage } from "./components/Pages/ReportsPage";
+import { BenchmarksPage } from "./components/Pages/BenchmarksPage";
 import { SplashPreloader } from "./components/SplashPreloader";
 import { CheckCircle, Menu, X, ShieldAlert, Sun, Moon } from "lucide-react";
 
 export function App() {
-  const [activePage, setActivePage] = useState<"dashboard" | "audit" | "reports">("dashboard");
+  const [activePage, setActivePage] = useState<"dashboard" | "audit" | "reports" | "benchmarks">("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
   const [theme, setTheme] = useState<"dark" | "light">(() => {
     if (typeof window !== "undefined") {
@@ -48,6 +49,9 @@ export function App() {
     setRiskFilter,
     toastMessage,
     showToast,
+    benchmarks,
+    isLoadingBenchmarks,
+    fetchBenchmarks,
   } = useInvoiceXRay();
 
   const handleSelectTransaction = (id: string, targetView?: "audit" | "reports") => {
@@ -185,6 +189,17 @@ export function App() {
             exportSTRNarrative={exportSTRNarrative}
             showToast={showToast}
             transactionIds={transactionIds}
+            theme={theme}
+            onToggleTheme={toggleTheme}
+          />
+        )}
+
+        {/* Page 4: Independent Commodity Benchmarks */}
+        {activePage === "benchmarks" && (
+          <BenchmarksPage
+            benchmarks={benchmarks}
+            isLoading={isLoadingBenchmarks}
+            onRefresh={fetchBenchmarks}
             theme={theme}
             onToggleTheme={toggleTheme}
           />
