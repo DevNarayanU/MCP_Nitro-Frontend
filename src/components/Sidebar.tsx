@@ -7,7 +7,7 @@ import {
   Search,
   RefreshCw,
 } from "lucide-react";
-import { SEED_TRANSACTIONS } from "../data/seedTransactions";
+import type { EvaluationResults } from "../types/invoicexray";
 
 interface SidebarProps {
   activePage: "dashboard" | "audit" | "reports";
@@ -19,6 +19,8 @@ interface SidebarProps {
   onReevaluateAll: () => void;
   isEvaluating: boolean;
   onReplayIntro: () => void;
+  transactionIds: string[];
+  evaluations: Record<string, EvaluationResults>;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -31,8 +33,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onReevaluateAll,
   isEvaluating,
   onReplayIntro,
+  transactionIds,
+  evaluations,
 }) => {
-  const seedKeys = Object.keys(SEED_TRANSACTIONS);
+  const seedKeys = transactionIds || [];
 
   return (
     <aside className="w-72 bg-zinc-950 border-r border-zinc-800/80 flex flex-col justify-between shrink-0 min-h-screen sticky top-0 h-screen overflow-y-auto">
@@ -140,10 +144,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
           <div className="space-y-1">
             {seedKeys.map((key) => {
-              const seedItem = SEED_TRANSACTIONS[key];
+              const seedItem = evaluations[key];
               const isSelected = selectedId === key;
-              const isCritical = seedItem.overallRisk === "CRITICAL";
-              const isHigh = seedItem.overallRisk === "HIGH";
+              const isCritical = seedItem?.overallRisk === "CRITICAL";
+              const isHigh = seedItem?.overallRisk === "HIGH";
 
               return (
                 <button

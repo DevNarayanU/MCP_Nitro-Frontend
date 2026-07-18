@@ -4,14 +4,13 @@ import { TransactionMetaHeader } from "../DeepDive/TransactionMetaHeader";
 import { CounterfactualVisualizer } from "../DeepDive/CounterfactualVisualizer";
 import { CrossAgencyPanel } from "../DeepDive/CrossAgencyPanel";
 import { RedFlagsFeed } from "../DeepDive/RedFlagsFeed";
-import { SEED_TRANSACTIONS } from "../../data/seedTransactions";
 import { FileSpreadsheet, ChevronRight } from "lucide-react";
-
 interface AuditPageProps {
   evaluation: EvaluationResults | null;
   selectedId: string | null;
   onSelectTransaction: (id: string) => void;
   onNavigate: (page: "dashboard" | "audit" | "reports") => void;
+  transactionIds: string[];
 }
 
 export const AuditPage: React.FC<AuditPageProps> = ({
@@ -19,8 +18,9 @@ export const AuditPage: React.FC<AuditPageProps> = ({
   selectedId,
   onSelectTransaction,
   onNavigate,
+  transactionIds,
 }) => {
-  const seedKeys = Object.keys(SEED_TRANSACTIONS);
+  const seedKeys = transactionIds || [];
 
   if (!evaluation) {
     return (

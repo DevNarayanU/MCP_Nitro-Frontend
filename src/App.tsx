@@ -14,6 +14,8 @@ export function App() {
   const [splashKey, setSplashKey] = useState<number>(0);
 
   const {
+    evaluations,
+    transactionIds,
     filteredEvaluations,
     aggregateMetrics,
     isEvaluating,
@@ -88,6 +90,8 @@ export function App() {
           onReevaluateAll={evaluateAll}
           isEvaluating={isEvaluating}
           onReplayIntro={handleReplayIntro}
+          transactionIds={transactionIds}
+          evaluations={evaluations}
         />
       </div>
 
@@ -134,6 +138,7 @@ export function App() {
             selectedId={selectedId}
             onSelectTransaction={(id) => handleSelectTransaction(id)}
             onNavigate={setActivePage}
+            transactionIds={transactionIds}
           />
         )}
 
@@ -147,6 +152,7 @@ export function App() {
             generateRBIFormETX={generateRBIFormETX}
             exportSTRNarrative={exportSTRNarrative}
             showToast={showToast}
+            transactionIds={transactionIds}
           />
         )}
       </main>
