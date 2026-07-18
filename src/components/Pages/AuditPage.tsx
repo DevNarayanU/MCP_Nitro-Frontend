@@ -98,21 +98,21 @@ export const AuditPage: React.FC<AuditPageProps> = ({
         {/* Left Column: Valuation & Agency Checks (7 cols) */}
         <div className="lg:col-span-7 space-y-8">
           <TransactionMetaHeader
-            meta={evaluation.transactionMeta}
-            overallRisk={evaluation.overallRisk}
+            meta={evaluation?.transactionMeta}
+            overallRisk={evaluation?.overallRisk || "ELEVATED"}
           />
 
           <CounterfactualVisualizer
-            gap={evaluation.manipulationGap}
-            declaredValue={evaluation.transactionMeta.declared_value_usd}
+            gap={evaluation?.manipulationGap || null}
+            declaredValue={evaluation?.transactionMeta?.declared_value_usd ?? 0}
           />
 
-          <CrossAgencyPanel crossAgency={evaluation.crossAgency} />
+          <CrossAgencyPanel crossAgency={evaluation?.crossAgency} />
         </div>
 
         {/* Right Column: Red Flags Intelligence (5 cols) */}
         <div className="lg:col-span-5 space-y-8">
-          <RedFlagsFeed flags={evaluation.flags} />
+          <RedFlagsFeed flags={evaluation?.flags || []} />
         </div>
       </div>
     </div>

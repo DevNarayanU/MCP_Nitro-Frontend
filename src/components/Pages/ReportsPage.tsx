@@ -94,13 +94,13 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({
       {/* Reports Section 1: FIU-IND STR Narrative Terminal */}
       <div className="space-y-8">
         <STREditor
-          strDraft={evaluation.str}
-          onCopyNarrative={() => exportSTRNarrative(evaluation.invoice_id)}
+          strDraft={evaluation?.str || null}
+          onCopyNarrative={() => exportSTRNarrative(evaluation?.invoice_id || selectedId || "")}
         />
 
         {/* Reports Section 2: Statutory & HTML Audit Filings */}
         <RegulatoryActionsPanel
-          invoiceId={evaluation.invoice_id}
+          invoiceId={evaluation?.invoice_id || selectedId || ""}
           htmlReport={htmlReport}
           rbiFormETX={rbiFormETX}
           onShowToast={showToast}
