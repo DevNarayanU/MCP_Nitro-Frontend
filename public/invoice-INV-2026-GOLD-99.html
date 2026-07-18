@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>COMMERCIAL TRADE INVOICE - INV-2026-GOLD-99</title>
+  <style>
+    body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #1e293b; margin: 0; padding: 40px; background: #fff; }
+    .invoice-card { max-width: 800px; margin: 0 auto; border: 1px solid #e2e8f0; padding: 40px; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+    .header { display: flex; justify-content: space-between; align-items: flex-start; border-b: 2px solid #0f172a; padding-bottom: 20px; margin-bottom: 30px; }
+    .title { font-size: 28px; font-weight: 800; color: #0f172a; letter-spacing: -0.5px; }
+    .subtitle { font-size: 12px; color: #64748b; margin-top: 4px; font-family: monospace; }
+    .meta-box { text-align: right; font-family: monospace; font-size: 13px; line-height: 1.6; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 30px; }
+    .entity-box { background: #f8fafc; border: 1px solid #e2e8f0; padding: 16px; border-radius: 6px; }
+    .entity-title { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+    .entity-name { font-size: 15px; font-weight: 700; color: #0f172a; }
+    .entity-detail { font-size: 12px; color: #475569; margin-top: 4px; font-family: monospace; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+    th { background: #0f172a; color: #fff; font-size: 11px; text-transform: uppercase; font-family: monospace; padding: 12px; text-align: left; }
+    td { border-bottom: 1px solid #e2e8f0; padding: 14px 12px; font-size: 13px; font-family: monospace; }
+    .total-row { font-weight: 800; font-size: 16px; background: #f1f5f9; }
+    .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; font-family: monospace; background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; }
+    .footer { border-top: 1px dashed #cbd5e1; padding-top: 20px; font-size: 11px; color: #64748b; font-family: monospace; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="invoice-card">
+    <div class="header">
+      <div>
+        <div class="title">COMMERCIAL INVOICE</div>
+        <div class="subtitle">INTERNATIONAL TRADE FINANCE DOCUMENTATION • FEMA 2026</div>
+      </div>
+      <div class="meta-box">
+        <div><strong>INVOICE REF:</strong> INV-2026-GOLD-99</div>
+        <div><strong>DATE:</strong> 2026-07-01</div>
+        <div><strong>LC NO:</strong> LC-GLD-8821</div>
+        <div><strong>SHIPPING BILL:</strong> SB-AU-22109</div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="entity-box">
+        <div class="entity-title">EXPORTER / SHIPPER</div>
+        <div class="entity-name">AURUM AGRI & METALS PVT LTD</div>
+        <div class="entity-detail">IEC: IEC123456789</div>
+        <div class="entity-detail">AD BANK: HDFC0000213 (HDFC Bank Ltd)</div>
+        <div class="entity-detail">PORT OF LOADING: INBOM1 (Mumbai Port)</div>
+      </div>
+
+      <div class="entity-box">
+        <div class="entity-title">IMPORTER / CONSIGNEE</div>
+        <div class="entity-name">VALUABLE METALS GMBH</div>
+        <div class="entity-detail">COUNTRY CODE: CHE (Switzerland)</div>
+        <div class="entity-detail">PORT OF DISCHARGE: CHZRH (Zurich Hub)</div>
+        <div class="entity-detail">TERMS: FOB (Free On Board)</div>
+      </div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>HS CODE</th>
+          <th>COMMODITY DESCRIPTION</th>
+          <th>QTY</th>
+          <th>UNIT PRICE</th>
+          <th style="text-align: right;">TOTAL (USD)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>710812</td>
+          <td>99.9% Pure Gold Bullion Bars (Unwrought)</td>
+          <td>500 oz</td>
+          <td>$2,950.00</td>
+          <td style="text-align: right; font-weight: 700;">$1,475,000.00</td>
+        </tr>
+        <tr class="total-row">
+          <td colspan="4" style="text-align: right;">DECLARED TOTAL AMOUNT:</td>
+          <td style="text-align: right; color: #0f172a;">$1,475,000.00 USD</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div style="background: #fff1f2; border: 1px solid #fecdd3; padding: 16px; border-radius: 6px; margin-bottom: 30px;">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <span style="font-weight: 700; color: #9f1239; font-size: 13px;">TBML COMPLIANCE AUDIT AUDIT FLAGS</span>
+        <span class="badge">CRITICAL RISK ALERT</span>
+      </div>
+      <p style="font-size: 12px; color: #be123c; margin: 8px 0 0 0; font-family: monospace;">
+        • Over-Invoicing: Unit price $2,950/oz vs LBMA Benchmark $2,200/oz (+34.09% gap = $375,000 USD).<br>
+        • Geospatial Anomaly: Port of discharge CHZRH (Zurich) is landlocked.<br>
+        • DGFT Caution List: Exporter IEC123456789 under circular trading investigation.
+      </p>
+    </div>
+
+    <div class="footer">
+      OFFICIAL TRADE RECORD • VERIFIED BY INVOICEX-RAY MCP SERVER ENGINE
+    </div>
+  </div>
+</body>
+</html>
